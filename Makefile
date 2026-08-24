@@ -1,5 +1,6 @@
 .PHONY: help install test lint format run clean
 
+BACKEND_DIR := backend
 PYTHON := poetry run python
 PYTEST := poetry run pytest
 UVICORN := poetry run uvicorn
@@ -15,19 +16,19 @@ help:
 	@echo "  clean - Limpar artefatos"
 
 install:
-	poetry install
+	cd $(BACKEND_DIR) && poetry install
 
 test:
-	$(PYTEST)
+	cd $(BACKEND_DIR) && $(PYTEST)
 
 lint:
-	$(RUFF) check .
+	cd $(BACKEND_DIR) && $(RUFF) check .
 
 format:
-	$(RUFF) format .
+	cd $(BACKEND_DIR) && $(RUFF) format .
 
 run:
-	$(UVICORN) backend.main:app --reload
+	cd $(BACKEND_DIR) && $(UVICORN) main:app --reload
 
 clean:
-	rm -rf __pycache__ .pytest_cache .ruff_cache
+	cd $(BACKEND_DIR) && rm -rf __pycache__ .pytest_cache .ruff_cache
