@@ -1,8 +1,6 @@
 from fastapi import FastAPI
 
+from app.api.routes.games import router as games_router
+
 app = FastAPI()
-
-@app.get("/")
-def home():
-    return {"message": "Olá, Sistemas Distribuídos!"}
-
+app.include_router(games_router, prefix="/api/v1")
