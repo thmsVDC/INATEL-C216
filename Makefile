@@ -22,7 +22,7 @@ help:
 	@echo "  docker-clean   - Remove containers, volumes e imagens"
 
 install:
-	cd $(BACKEND_DIR) && poetry install
+	cd $(BACKEND_DIR) && poetry install --no-root
 
 test:
 	cd $(BACKEND_DIR) && $(PYTEST)
