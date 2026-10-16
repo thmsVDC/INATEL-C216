@@ -3,10 +3,16 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.api.routes.games import get_flag_provider, get_game_service
+from app.api.routes.games import get_flag_provider
+from app.database import get_db
+from app.models import Base
+from app.repositories.game_repository import GameRepository
 from app.schemas.game import FlagQuestion
 from app.services.game_service import GameService
 from main import app
@@ -33,11 +39,30 @@ class FakeFlagProvider:
 
 
 @pytest.fixture
-def client() -> TestClient:
-    service = GameService()
+def db_session() -> Session:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    test_session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+    with test_session_factory() as session:
+        yield session
+    Base.metadata.drop_all(engine)
+    engine.dispose()
+
+
+@pytest.fixture
+def game_service(db_session: Session) -> GameService:
+    return GameService(GameRepository(db_session))
+
+
+@pytest.fixture
+def client(db_session: Session) -> TestClient:
     provider = FakeFlagProvider()
 
-    app.dependency_overrides[get_game_service] = lambda: service
+    app.dependency_overrides[get_db] = lambda: db_session
     app.dependency_overrides[get_flag_provider] = lambda: provider
 
     with TestClient(app) as test_client:

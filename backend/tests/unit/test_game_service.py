@@ -1,7 +1,14 @@
 import pytest
+from sqlalchemy.orm import Session
 
+from app.repositories.game_repository import GameRepository
 from app.schemas.game import FlagQuestion, GamePatch, GameReplace
 from app.services.game_service import GameNotFoundError, GameService
+
+
+@pytest.fixture
+def service(db_session: Session) -> GameService:
+    return GameService(GameRepository(db_session))
 
 
 def question(country: str = "Brasil") -> FlagQuestion:
@@ -11,8 +18,7 @@ def question(country: str = "Brasil") -> FlagQuestion:
     )
 
 
-def test_create_game_sets_initial_state() -> None:
-    service = GameService()
+def test_create_game_sets_initial_state(service: GameService) -> None:
 
     game = service.create_game(question())
 
@@ -23,8 +29,7 @@ def test_create_game_sets_initial_state() -> None:
     assert game.is_active is True
 
 
-def test_list_games_respects_limit() -> None:
-    service = GameService()
+def test_list_games_respects_limit(service: GameService) -> None:
     service.create_game(question("Brasil"))
     service.create_game(question("Canadá"))
 
@@ -34,8 +39,7 @@ def test_list_games_respects_limit() -> None:
     assert games[0].correct_country == "Brasil"
 
 
-def test_replace_game_replaces_all_fields() -> None:
-    service = GameService()
+def test_replace_game_replaces_all_fields(service: GameService) -> None:
     game = service.create_game(question())
 
     updated = service.replace_game(
@@ -55,8 +59,7 @@ def test_replace_game_replaces_all_fields() -> None:
     assert updated.is_active is False
 
 
-def test_patch_game_changes_only_requested_fields() -> None:
-    service = GameService()
+def test_patch_game_changes_only_requested_fields(service: GameService) -> None:
     game = service.create_game(question())
 
     updated = service.patch_game(game.id, GamePatch(score=2))
@@ -67,8 +70,7 @@ def test_patch_game_changes_only_requested_fields() -> None:
     assert updated.streak == 0
 
 
-def test_correct_guess_increments_score_and_streak() -> None:
-    service = GameService()
+def test_correct_guess_increments_score_and_streak(service: GameService) -> None:
     game = service.create_game(question())
 
     updated, is_correct, correct_country = service.submit_guess(
@@ -84,8 +86,7 @@ def test_correct_guess_increments_score_and_streak() -> None:
     assert updated.correct_country == "Canadá"
 
 
-def test_wrong_guess_resets_streak_and_reveals_answer() -> None:
-    service = GameService()
+def test_wrong_guess_resets_streak_and_reveals_answer(service: GameService) -> None:
     game = service.create_game(question())
     service.patch_game(game.id, GamePatch(streak=2))
 
@@ -100,8 +101,7 @@ def test_wrong_guess_resets_streak_and_reveals_answer() -> None:
     assert updated.streak == 0
 
 
-def test_delete_game_removes_it() -> None:
-    service = GameService()
+def test_delete_game_removes_it(service: GameService) -> None:
     game = service.create_game(question())
 
     service.delete_game(game.id)
@@ -111,8 +111,7 @@ def test_delete_game_removes_it() -> None:
 
 
 @pytest.mark.parametrize("game_id", [0, 10])
-def test_get_missing_game_raises_error(game_id: int) -> None:
-    service = GameService()
+def test_get_missing_game_raises_error(game_id: int, service: GameService) -> None:
 
     with pytest.raises(GameNotFoundError):
         service.get_game(game_id)

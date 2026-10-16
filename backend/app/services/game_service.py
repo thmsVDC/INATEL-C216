@@ -1,9 +1,6 @@
-from app.schemas.game import (
-    FlagQuestion,
-    GamePatch,
-    GameReplace,
-    GameState,
-)
+from app.models import Game
+from app.repositories.game_repository import GameRepository
+from app.schemas.game import FlagQuestion, GamePatch, GameReplace
 
 
 class GameNotFoundError(Exception):
@@ -11,43 +8,36 @@ class GameNotFoundError(Exception):
 
 
 class GameService:
-    def __init__(self) -> None:
-        self._games: dict[int, GameState] = {}
-        self._next_id = 1
+    def __init__(self, repository: GameRepository) -> None:
+        self.repository = repository
 
-    def list_games(self, limit: int) -> list[GameState]:
-        return list(self._games.values())[:limit]
+    def list_games(self, limit: int) -> list[Game]:
+        return self.repository.list(limit)
 
-    def get_game(self, game_id: int) -> GameState:
-        try:
-            return self._games[game_id]
-        except KeyError as error:
-            raise GameNotFoundError(
-                f"Game {game_id} not found"
-            ) from error
+    def get_game(self, game_id: int) -> Game:
+        game = self.repository.get(game_id)
+        if game is None:
+            raise GameNotFoundError(f"Game {game_id} not found")
+        return game
 
-    def create_game(self, question: FlagQuestion) -> GameState:
-        game = GameState(
-            id=self._next_id,
+    def create_game(self, question: FlagQuestion) -> Game:
+        return self.repository.create(
             correct_country=question.correct_country,
             flag_url=question.flag_url,
         )
-        self._games[game.id] = game
-        self._next_id += 1
-        return game
 
-    def replace_game(self, game_id: int, data: GameReplace) -> GameState:
-        self.get_game(game_id)
-        game = GameState(id=game_id, **data.model_dump())
-        self._games[game_id] = game
-        return game
+    def replace_game(self, game_id: int, data: GameReplace) -> Game:
+        game = self.get_game(game_id)
+        for field, value in data.model_dump().items():
+            setattr(game, field, value)
+        return self.repository.save(game)
 
-    def patch_game(self, game_id: int, data: GamePatch) -> GameState:
-        current_game = self.get_game(game_id)
+    def patch_game(self, game_id: int, data: GamePatch) -> Game:
+        game = self.get_game(game_id)
         updates = data.model_dump(exclude_unset=True, exclude_none=True)
-        updated_game = current_game.model_copy(update=updates)
-        self._games[game_id] = updated_game
-        return updated_game
+        for field, value in updates.items():
+            setattr(game, field, value)
+        return self.repository.save(game)
 
     @staticmethod
     def is_correct_answer(correct_country: str, answer: str) -> bool:
@@ -58,32 +48,22 @@ class GameService:
         game_id: int,
         answer: str,
         next_question: FlagQuestion | None = None,
-    ) -> tuple[GameState, bool, str | None]:
-        current_game = self.get_game(game_id)
-        is_correct = self.is_correct_answer(
-            current_game.correct_country,
-            answer,
-        )
+    ) -> tuple[Game, bool, str | None]:
+        game = self.get_game(game_id)
+        is_correct = self.is_correct_answer(game.correct_country, answer)
+        correct_country = None
 
         if is_correct:
-            updates: dict[str, object] = {
-                "score": current_game.score + 1,
-                "streak": current_game.streak + 1,
-            }
-
+            game.score += 1
+            game.streak += 1
             if next_question is not None:
-                updates["correct_country"] = next_question.correct_country
-                updates["flag_url"] = next_question.flag_url
-
-            updated_game = current_game.model_copy(update=updates)
-            correct_country = None
+                game.correct_country = next_question.correct_country
+                game.flag_url = next_question.flag_url
         else:
-            updated_game = current_game.model_copy(update={"streak": 0})
-            correct_country = current_game.correct_country
+            game.streak = 0
+            correct_country = game.correct_country
 
-        self._games[game_id] = updated_game
-        return updated_game, is_correct, correct_country
+        return self.repository.save(game), is_correct, correct_country
 
     def delete_game(self, game_id: int) -> None:
-        self.get_game(game_id)
-        del self._games[game_id]
+        self.repository.delete(self.get_game(game_id))

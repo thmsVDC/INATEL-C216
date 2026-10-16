@@ -1,5 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
+from sqlalchemy.orm import Session
 
+from app.database import get_db
+from app.repositories.game_repository import GameRepository
 from app.schemas.game import (
     FlagQuestion,
     GamePatch,
@@ -14,15 +17,13 @@ from app.services.flag_provider import (
 )
 from app.services.game_service import GameNotFoundError, GameService
 
-
 router = APIRouter(prefix="/games", tags=["games"])
 
-_game_service = GameService()
 _flag_provider = RestCountriesFlagProvider()
 
 
-def get_game_service() -> GameService:
-    return _game_service
+def get_game_service(session: Session = Depends(get_db)) -> GameService:
+    return GameService(GameRepository(session))
 
 
 def get_flag_provider() -> FlagProvider:

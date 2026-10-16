@@ -1,7 +1,30 @@
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session, sessionmaker
 
+from app.repositories.game_repository import GameRepository
+from app.schemas.game import FlagQuestion
+from app.services.game_service import GameService
 
 GAMES_URL = "/api/v1/games"
+
+
+def test_game_is_persisted_across_sessions(db_session: Session) -> None:
+    service = GameService(GameRepository(db_session))
+    created = service.create_game(
+        FlagQuestion(
+            correct_country="Brasil",
+            flag_url="https://example.com/br.png",
+        )
+    )
+
+    independent_session_factory = sessionmaker(
+        bind=db_session.get_bind(), expire_on_commit=False
+    )
+    with independent_session_factory() as restarted_session:
+        persisted = GameRepository(restarted_session).get(created.id)
+
+    assert persisted is not None
+    assert persisted.correct_country == "Brasil"
 
 
 def test_post_starts_game_without_revealing_answer(
