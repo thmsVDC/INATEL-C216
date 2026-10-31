@@ -8,27 +8,18 @@ Projeto acadêmico de Sistemas Distribuídos com uma interface web, uma API e um
 - **Backend:** API FastAPI com SQLAlchemy e migrações Alembic.
 - **Banco:** PostgreSQL com volume persistente.
 
-## Fluxo
-
-```mermaid
-flowchart LR
-    Navegador -->|localhost:5173| Frontend["Frontend React"]
-    Navegador -->|localhost:8000/docs| API["API FastAPI"]
-    API -->|localhost interno do Compose| Banco["PostgreSQL"]
-```
-
 ## Executar o projeto
 
-Você só precisa do Docker Desktop com Docker Compose.
+Você só precisa do Docker Desktop com Docker Compose e do Make instalado.
 
 1. Abra um terminal na pasta raiz do projeto.
-2. Construa as imagens e inicie os serviços:
+2. Construa as imagens e inicie os serviços com um único comando:
 
    ```bash
-   docker compose up --build -d
+   make docker-up
    ```
 
-3. Confira se os três serviços estão ativos:
+3. Confira se os serviços estão ativos:
 
    ```bash
    docker compose ps
@@ -45,7 +36,7 @@ O backend aplica as migrações automaticamente ao iniciar. Nesta etapa, o front
 ## Parar os serviços
 
 ```bash
-docker compose down
+make docker-down
 ```
 
 Os dados do PostgreSQL permanecem no volume postgres_data quando os containers são parados.

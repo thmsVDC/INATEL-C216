@@ -16,7 +16,7 @@ help:
 	@echo "  run            - Executar servidor"
 	@echo "  clean          - Limpar artefatos"
 	@echo "  docker-build   - Constroi as imagens Docker"
-	@echo "  docker-up      - Sobe os containers em background"
+	@echo "  docker-up      - Constroi as imagens e sobe os containers em background"
 	@echo "  docker-down    - Para e remove os containers"
 	@echo "  docker-logs    - Exibe os logs dos containers"
 	@echo "  docker-restart - Reinicia os containers"
@@ -55,7 +55,7 @@ docker-build:
 	docker compose build
 
 docker-up:
-	docker compose up -d
+	docker compose up --build -d
 
 docker-down:
 	docker compose down
