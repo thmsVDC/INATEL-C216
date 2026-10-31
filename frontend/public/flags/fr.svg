@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140" role="img" aria-label="Bandeira da França">
+  <rect width="200" height="140" rx="8" fill="#fff"/>
+  <path fill="#0055a4" d="M0 0h67v140H0z"/>
+  <path fill="#ef4135" d="M133 0h67v140h-67z"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140" role="img" aria-label="Bandeira do Canadá">
+  <rect width="200" height="140" rx="8" fill="#fff"/>
+  <path fill="#d80621" d="M0 0h48v140H0zM152 0h48v140h-48z"/>
+  <path fill="#d80621" d="m100 24 9 25 15-11-5 20 19-2-13 15 10 8-20 2-4 28-11-9-11 9-4-28-20-2 10-8-13-15 19 2-5-20 15 11z"/>
+</svg>
