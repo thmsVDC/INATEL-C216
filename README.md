@@ -1,114 +1,76 @@
-# INATEL C216 | Jogo de bandeiras
+# INATEL C216 — Jogo de bandeiras
 
-Um projeto de aprendizado de Sistemas Distribuídos: uma API para partidas do jogo de bandeiras e uma interface web para testar seus conhecimentos.
+Projeto acadêmico de Sistemas Distribuídos com uma interface web, uma API e um banco PostgreSQL. O ambiente completo pode ser iniciado com Docker Compose.
 
-## O que tem aqui
+## O que roda
 
-- **Backend:** FastAPI, SQLAlchemy e PostgreSQL, com CRUD de partidas, palpites e migrações Alembic.
-- **Frontend:** React, Vite e Tailwind CSS; quiz de dez bandeiras com pontuação, sequência de acertos e resultado final.
-- **Qualidade:** testes automatizados, Biome, Ruff e GitHub Actions.
+- **Frontend:** React e Vite, servido por Nginx.
+- **Backend:** API FastAPI com SQLAlchemy e migrações Alembic.
+- **Banco:** PostgreSQL com volume persistente.
 
-Nesta prática, o frontend usa dados locais. A integração com a API e a execução do frontend em containers ficam para a próxima etapa.
+## Fluxo
 
-## Pré-requisitos
-
-- Python 3.12 e Poetry
-- Node.js 22.12 ou superior e npm
-- Docker Desktop e Docker Compose
-
-## Executar em desenvolvimento local
-
-O PostgreSQL fica no Docker e o backend e o frontend rodam localmente.
-
-Instale o backend e inicie o banco:
-
-```bash
-make install
-docker compose up -d db
+```mermaid
+flowchart LR
+    Navegador -->|localhost:5173| Frontend["Frontend React"]
+    Navegador -->|localhost:8000/docs| API["API FastAPI"]
+    API -->|localhost interno do Compose| Banco["PostgreSQL"]
 ```
 
-Aplique a migração e inicie a API em um terminal:
+## Executar o projeto
+
+Você só precisa do Docker Desktop com Docker Compose.
+
+1. Abra um terminal na pasta raiz do projeto.
+2. Construa as imagens e inicie os serviços:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+3. Confira se os três serviços estão ativos:
+
+   ```bash
+   docker compose ps
+   ```
+
+4. Acesse:
+
+   - Frontend: http://localhost:5173
+   - Documentação da API: http://localhost:8000/docs
+   - PostgreSQL: localhost:5432
+
+O backend aplica as migrações automaticamente ao iniciar. Nesta etapa, o frontend ainda usa dados locais; a integração com a API fica para a próxima etapa.
+
+## Parar os serviços
 
 ```bash
-cd backend
-poetry run alembic upgrade head
-poetry run uvicorn main:app --reload
+docker compose down
 ```
 
-Em outro terminal, instale e inicie o frontend:
+Os dados do PostgreSQL permanecem no volume postgres_data quando os containers são parados.
 
-```bash
-make front-install
-make front-dev
-```
-
-Abra o frontend em http://localhost:5173 e a documentação da API em http://localhost:8000/docs.
-
-## Executar API e PostgreSQL com Docker
-
-Na raiz do projeto:
-
-```bash
-make docker-up
-```
-
-O Compose inicia o PostgreSQL e a API. A migração é aplicada automaticamente quando o backend sobe. A API fica em http://localhost:8000 e a documentação interativa em http://localhost:8000/docs.
-
-Para usar também o frontend, deixe os containers em execução e inicie-o localmente:
-
-```bash
-make front-install
-make front-dev
-```
-
-Para parar os serviços:
-
-```bash
-make docker-down
-```
-
-O banco usa o volume persistente postgres_data.
-
-## Testes e qualidade
-
-```bash
-make test
-make lint
-make front-test
-make front-test-e2e
-make front-check
-make front-build
-```
-
-Na primeira execução dos testes de navegador, instale o Chromium do Playwright:
-
-```bash
-make front-e2e-install
-```
-
-## Estrutura do projeto
+## Estrutura
 
 ```text
 .
 ├── .github/workflows/     # CI do backend e do frontend
 ├── backend/
 │   ├── app/
-│   │   ├── api/routes/    # Endpoints da API
-│   │   ├── repositories/  # Acesso aos dados
-│   │   ├── schemas/       # Contratos Pydantic
+│   │   ├── api/routes/    # Endpoints FastAPI
+│   │   ├── repositories/  # Acesso ao banco
+│   │   ├── schemas/       # Schemas Pydantic
 │   │   ├── services/      # Regras do jogo
-│   │   ├── database.py    # Conexão e sessões SQLAlchemy
+│   │   ├── database.py    # Conexão SQLAlchemy
 │   │   └── models.py      # Modelos ORM
 │   ├── migrations/        # Migrações Alembic
-│   ├── tests/             # Testes unitários e de integração
-│   └── main.py            # Inicialização FastAPI
+│   └── tests/             # Testes do backend
 ├── frontend/
 │   ├── e2e/               # Testes Playwright
-│   ├── public/flags/      # Bandeiras SVG locais
+│   ├── public/flags/      # Imagens SVG
 │   └── src/
 │       ├── components/    # Componentes React
-│       ├── data/          # Perguntas e alternativas
-│       └── test/          # Configuração de testes
+│       └── data/          # Dados locais do quiz
 ├── docker-compose.yml
 └── Makefile
 ```

@@ -1,4 +1,14 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: c216-frontend
+    ports:
+      - "5173:80"
+    networks:
+      - c216-network
+
   backend:
     build:
       context: ./backend
