@@ -16,9 +16,6 @@ export default function Header() {
           <span className="block text-xs text-slate-400">quiz das bandeiras</span>
         </span>
       </a>
-      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300">
-        PRÁTICA 6 · FRONTEND
-      </span>
     </header>
   );
 }

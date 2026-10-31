@@ -225,7 +225,6 @@ export default function App() {
 
         <footer className="flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-5 text-xs text-slate-500 sm:flex-row">
           <span>Quiz das Bandeiras</span>
-          <span>Prática 6 · Frontend moderno</span>
         </footer>
       </div>
     </main>
