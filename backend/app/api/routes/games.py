@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import get_flag_provider
 from app.database import get_db
 from app.repositories.game_repository import GameRepository
 from app.schemas.game import (
@@ -13,21 +14,15 @@ from app.schemas.game import (
 )
 from app.services.flag_provider import (
     FlagProvider,
-    RestCountriesFlagProvider,
+    FlagProviderError,
 )
 from app.services.game_service import GameNotFoundError, GameService
 
 router = APIRouter(prefix="/games", tags=["games"])
 
-_flag_provider = RestCountriesFlagProvider()
-
 
 def get_game_service(session: Session = Depends(get_db)) -> GameService:
     return GameService(GameRepository(session))
-
-
-def get_flag_provider() -> FlagProvider:
-    return _flag_provider
 
 
 def to_game_response(game) -> GameResponse:
@@ -68,9 +63,12 @@ async def create_game(
     service: GameService = Depends(get_game_service),
     provider: FlagProvider = Depends(get_flag_provider),
 ) -> GameResponse:
-    question: FlagQuestion = await provider.get_random_flag()
-    game = service.create_game(question)
-    return to_game_response(game)
+    try:
+        question: FlagQuestion = await provider.get_random_flag()
+        game = service.create_game(question)
+        return to_game_response(game)
+    except FlagProviderError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 @router.put("/{game_id}", response_model=GameResponse)
@@ -126,6 +124,8 @@ async def submit_guess(
         )
     except GameNotFoundError as error:
         raise not_found(error) from error
+    except FlagProviderError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 @router.delete("/{game_id}", status_code=204)

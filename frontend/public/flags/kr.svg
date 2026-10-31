@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140" role="img" aria-label="Bandeira da Coreia do Sul">
-  <rect width="200" height="140" rx="8" fill="#fff"/>
-  <path d="M100 39a31 31 0 0 1 0 62 15.5 15.5 0 0 0 0-31 15.5 15.5 0 0 1 0-31" fill="#cd2e3a"/>
-  <path d="M100 101a31 31 0 0 1 0-62 15.5 15.5 0 0 0 0 31 15.5 15.5 0 0 1 0 31" fill="#0047a0"/>
-  <g stroke="#000" stroke-width="6">
-    <path d="M28 34h28m-28 8h28m-28 8h28M144 90h28m-28 8h28m-28 8h28"/>
-    <path d="M145 37h10m8 0h10m-28 8h28m-28 8h10m8 0h10M28 89h10m8 0h10m-28 8h28m-28 8h10m8 0h10"/>
-  </g>
-</svg>

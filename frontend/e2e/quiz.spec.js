@@ -1,6 +1,31 @@
 import { expect, test } from "@playwright/test";
 
+const questions = [
+  ["Brasil", "br"],
+  ["Japão", "jp"],
+  ["Canadá", "ca"],
+  ["França", "fr"],
+  ["Alemanha", "de"],
+  ["Itália", "it"],
+  ["Portugal", "pt"],
+  ["Argentina", "ar"],
+  ["Estados Unidos", "us"],
+  ["Coreia do Sul", "kr"],
+].map(([country, code]) => ({
+  country,
+  flag_url: `https://example.com/${code}.png`,
+  choices: [
+    country,
+    ...["Canadá", "França", "Japão", "Alemanha", "Portugal"]
+      .filter((choice) => choice !== country)
+      .slice(0, 3),
+  ],
+}));
+
 test("the user completes a full flag quiz", async ({ page }) => {
+  await page.route("**/api/v1/flags/quiz**", (route) =>
+    route.fulfill({ json: questions }),
+  );
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "De onde é esta bandeira?" }),

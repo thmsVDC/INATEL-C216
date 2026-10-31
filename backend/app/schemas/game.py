@@ -6,6 +6,12 @@ class FlagQuestion(BaseModel):
     flag_url: str
 
 
+class FlagQuizQuestion(BaseModel):
+    country: str
+    flag_url: str
+    choices: list[str] = Field(min_length=4, max_length=4)
+
+
 class GameState(BaseModel):
     id: int
     correct_country: str

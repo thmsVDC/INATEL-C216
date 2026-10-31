@@ -1,22 +1,51 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
+import { fetchQuizQuestions } from "./api/flags.js";
 import Header from "./components/Header.jsx";
 import ResultScreen from "./components/ResultScreen.jsx";
-import { questions } from "./data/flags.js";
 
 export default function App() {
+  const [questions, setQuestions] = useState([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [isFinished, setIsFinished] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  const loadQuestions = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError("");
+    try {
+      const nextQuestions = await fetchQuizQuestions();
+      setQuestions(nextQuestions);
+      setQuestionIndex(0);
+      setScore(0);
+      setStreak(0);
+      setSelectedAnswer(null);
+      setIsFinished(false);
+    } catch (error) {
+      setLoadError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadQuestions();
+  }, [loadQuestions]);
 
   const question = questions[questionIndex];
   const isCorrect = selectedAnswer === question?.country;
-  const progress = isFinished ? 100 : ((questionIndex + 1) / questions.length) * 100;
+  const progress = isFinished
+    ? 100
+    : questions.length > 0
+      ? ((questionIndex + 1) / questions.length) * 100
+      : 0;
 
   function chooseAnswer(answer) {
-    if (selectedAnswer !== null) return;
+    if (selectedAnswer !== null || !question) return;
 
     setSelectedAnswer(answer);
     if (answer === question.country) {
@@ -37,14 +66,6 @@ export default function App() {
     setSelectedAnswer(null);
   }
 
-  function restartGame() {
-    setQuestionIndex(0);
-    setScore(0);
-    setStreak(0);
-    setSelectedAnswer(null);
-    setIsFinished(false);
-  }
-
   return (
     <main className="min-h-screen overflow-hidden px-4 py-6 text-slate-100 sm:px-8 sm:py-10">
       <div aria-hidden="true" className="ambient ambient-one" />
@@ -53,13 +74,31 @@ export default function App() {
         <Header />
 
         <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center py-12">
-          {isFinished ? (
+          {isLoading ? (
+            <p aria-live="polite" className="text-center text-slate-300" role="status">
+              Carregando bandeiras...
+            </p>
+          ) : loadError ? (
+            <section className="text-center" role="alert">
+              <h1 className="text-3xl font-black text-white">
+                Não foi possível iniciar o quiz
+              </h1>
+              <p className="mt-4 text-slate-300">{loadError}</p>
+              <button
+                className="button-primary mt-6"
+                onClick={loadQuestions}
+                type="button"
+              >
+                Tentar novamente <span aria-hidden="true">↻</span>
+              </button>
+            </section>
+          ) : isFinished ? (
             <ResultScreen
-              onRestart={restartGame}
+              onRestart={loadQuestions}
               score={score}
               total={questions.length}
             />
-          ) : (
+          ) : question ? (
             <>
               <div className="mb-7 text-center">
                 <p className="mb-3 text-sm font-bold uppercase tracking-[0.25em] text-cyan-300">
@@ -181,7 +220,7 @@ export default function App() {
                 )}
               </section>
             </>
-          )}
+          ) : null}
         </div>
 
         <footer className="flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-5 text-xs text-slate-500 sm:flex-row">
