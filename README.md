@@ -1,53 +1,114 @@
-# Práticas de Sistemas Distribuídos
+# INATEL C216 | Jogo de bandeiras
 
-## Testes do backend
+Um projeto de aprendizado de Sistemas Distribuídos: uma API para partidas do jogo de bandeiras e uma interface web para testar seus conhecimentos.
 
-Com Poetry instalado, execute a partir da raiz do repositório:
+## O que tem aqui
+
+- **Backend:** FastAPI, SQLAlchemy e PostgreSQL, com CRUD de partidas, palpites e migrações Alembic.
+- **Frontend:** React, Vite e Tailwind CSS; quiz de dez bandeiras com pontuação, sequência de acertos e resultado final.
+- **Qualidade:** testes automatizados, Biome, Ruff e GitHub Actions.
+
+Nesta prática, o frontend usa dados locais. A integração com a API e a execução do frontend em containers ficam para a próxima etapa.
+
+## Pré-requisitos
+
+- Python 3.12 e Poetry
+- Node.js 22.12 ou superior e npm
+- Docker Desktop e Docker Compose
+
+## Executar em desenvolvimento local
+
+O PostgreSQL fica no Docker e o backend e o frontend rodam localmente.
+
+Instale o backend e inicie o banco:
 
 ```bash
 make install
-make test
-make lint
+docker compose up -d db
 ```
 
-## Executar a aplicação com PostgreSQL
+Aplique a migração e inicie a API em um terminal:
 
-O Docker Compose inicia o PostgreSQL e configura `DATABASE_URL` no backend. Na primeira inicialização, o backend aplica as migrações do Alembic antes de iniciar a API:
+```bash
+cd backend
+poetry run alembic upgrade head
+poetry run uvicorn main:app --reload
+```
+
+Em outro terminal, instale e inicie o frontend:
+
+```bash
+make front-install
+make front-dev
+```
+
+Abra o frontend em http://localhost:5173 e a documentação da API em http://localhost:8000/docs.
+
+## Executar API e PostgreSQL com Docker
+
+Na raiz do projeto:
 
 ```bash
 make docker-up
 ```
 
-Os dados do PostgreSQL ficam no volume `postgres_data` e continuam disponíveis depois de reiniciar os containers. Para parar e iniciar novamente:
+O Compose inicia o PostgreSQL e a API. A migração é aplicada automaticamente quando o backend sobe. A API fica em http://localhost:8000 e a documentação interativa em http://localhost:8000/docs.
+
+Para usar também o frontend, deixe os containers em execução e inicie-o localmente:
+
+```bash
+make front-install
+make front-dev
+```
+
+Para parar os serviços:
 
 ```bash
 make docker-down
-make docker-up
 ```
 
-Para usar outra conexão, defina `DATABASE_URL` no ambiente antes de executar o Compose. As migrações também podem ser aplicadas manualmente dentro de `backend` com `poetry run alembic upgrade head`.
+O banco usa o volume persistente postgres_data.
 
-## Frontend moderno
+## Testes e qualidade
 
-O frontend do jogo de bandeiras usa JavaScript, React, Vite e Tailwind CSS. Nesta prática, a interface trabalha com dados locais de demonstração; a integração com o backend e a persistência ficam para a próxima prática.
+```bash
+make test
+make lint
+make front-test
+make front-test-e2e
+make front-check
+make front-build
+```
 
-Com Node.js 22.12 ou superior, instale as dependências e inicie o servidor de desenvolvimento:
+Na primeira execução dos testes de navegador, instale o Chromium do Playwright:
 
-    make front-install
-    make front-dev
+```bash
+make front-e2e-install
+```
 
-Para executar os testes de navegador pela primeira vez, instale o Chromium do Playwright:
+## Estrutura do projeto
 
-    make front-e2e-install
-
-Os principais comandos ficam disponíveis pelo Makefile:
-
-    make front-build
-    make front-test
-    make front-test-e2e
-    make front-lint
-    make front-format
-    make front-format-check
-    make front-check
-
-Biome executa lint, formatação e organização de imports. Vitest e React Testing Library cobrem os componentes e interações; Playwright verifica o fluxo completo no Chromium. A workflow Frontend CI roda o lint primeiro e, em seguida, testes, formatação e build.
+```text
+.
+├── .github/workflows/     # CI do backend e do frontend
+├── backend/
+│   ├── app/
+│   │   ├── api/routes/    # Endpoints da API
+│   │   ├── repositories/  # Acesso aos dados
+│   │   ├── schemas/       # Contratos Pydantic
+│   │   ├── services/      # Regras do jogo
+│   │   ├── database.py    # Conexão e sessões SQLAlchemy
+│   │   └── models.py      # Modelos ORM
+│   ├── migrations/        # Migrações Alembic
+│   ├── tests/             # Testes unitários e de integração
+│   └── main.py            # Inicialização FastAPI
+├── frontend/
+│   ├── e2e/               # Testes Playwright
+│   ├── public/flags/      # Bandeiras SVG locais
+│   └── src/
+│       ├── components/    # Componentes React
+│       ├── data/          # Perguntas e alternativas
+│       └── test/          # Configuração de testes
+├── docker-compose.yml
+└── Makefile
+```
