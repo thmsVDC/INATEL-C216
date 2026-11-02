@@ -1,4 +1,14 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: c216-frontend
+    ports:
+      - "5173:80"
+    networks:
+      - c216-network
+
   backend:
     build:
       context: ./backend
@@ -9,9 +19,11 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/c216db
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/c216db}
+      REST_COUNTRIES_API_KEY: ${REST_COUNTRIES_API_KEY:-}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - c216-network
 
@@ -27,6 +39,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d c216db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - c216-network
 
