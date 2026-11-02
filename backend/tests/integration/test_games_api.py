@@ -1,0 +1,169 @@
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.repositories.game_repository import GameRepository
+from app.schemas.game import FlagQuestion
+from app.services.game_service import GameService
+
+GAMES_URL = "/api/v1/games"
+
+
+def test_game_is_persisted_across_sessions(db_session: Session) -> None:
+    service = GameService(GameRepository(db_session))
+    created = service.create_game(
+        FlagQuestion(
+            correct_country="Brasil",
+            flag_url="https://example.com/br.png",
+        )
+    )
+
+    independent_session_factory = sessionmaker(
+        bind=db_session.get_bind(), expire_on_commit=False
+    )
+    with independent_session_factory() as restarted_session:
+        persisted = GameRepository(restarted_session).get(created.id)
+
+    assert persisted is not None
+    assert persisted.correct_country == "Brasil"
+
+
+def test_cors_allows_the_local_frontend_origin(client: TestClient) -> None:
+    response = client.options(
+        GAMES_URL,
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_post_starts_game_without_revealing_answer(
+    client: TestClient,
+) -> None:
+    response = client.post(GAMES_URL)
+
+    assert response.status_code == 201
+    assert response.json()["flag_url"] == "https://example.com/br.png"
+    assert response.json()["score"] == 0
+    assert "correct_country" not in response.json()
+    assert len(response.json()["choices"]) == 4
+
+
+def test_get_games_accepts_limit_query(client: TestClient) -> None:
+    client.post(GAMES_URL)
+    client.post(GAMES_URL)
+
+    response = client.get(GAMES_URL, params={"limit": 1})
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert "correct_country" not in response.json()[0]
+
+
+def test_get_game_by_id_hides_answer(client: TestClient) -> None:
+    created = client.post(GAMES_URL).json()
+
+    response = client.get(f"{GAMES_URL}/{created['id']}")
+
+    assert response.status_code == 200
+    assert response.json()["flag_url"] == "https://example.com/br.png"
+    assert "correct_country" not in response.json()
+
+
+def test_put_replaces_game(client: TestClient) -> None:
+    created = client.post(GAMES_URL).json()
+    replacement = {
+        "correct_country": "Argentina",
+        "flag_url": "https://example.com/ar.png",
+        "score": 5,
+        "streak": 3,
+        "is_active": False,
+    }
+
+    response = client.put(
+        f"{GAMES_URL}/{created['id']}",
+        json=replacement,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["flag_url"] == "https://example.com/ar.png"
+    assert response.json()["score"] == 5
+    assert "correct_country" not in response.json()
+
+
+def test_patch_updates_game_partially(client: TestClient) -> None:
+    created = client.post(GAMES_URL).json()
+
+    response = client.patch(
+        f"{GAMES_URL}/{created['id']}",
+        json={"score": 2},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["score"] == 2
+    assert "correct_country" not in response.json()
+
+
+def test_correct_guess_advances_to_next_flag(client: TestClient) -> None:
+    created = client.post(GAMES_URL).json()
+
+    response = client.post(
+        f"{GAMES_URL}/{created['id']}/guess",
+        json={"answer": "brasil"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_correct"] is True
+    assert response.json()["game"]["score"] == 1
+    assert response.json()["game"]["streak"] == 1
+    assert response.json()["game"]["flag_url"] == "https://example.com/ca.png"
+    assert response.json()["correct_country"] is None
+
+
+def test_wrong_guess_returns_answer_and_resets_streak(
+    client: TestClient,
+) -> None:
+    created = client.post(GAMES_URL).json()
+
+    response = client.post(
+        f"{GAMES_URL}/{created['id']}/guess",
+        json={"answer": "Chile"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_correct"] is False
+    assert response.json()["correct_country"] == "Brasil"
+    assert response.json()["game"]["streak"] == 0
+
+
+def test_final_guess_closes_game_and_persists_score(client: TestClient) -> None:
+    created = client.post(GAMES_URL).json()
+
+    response = client.post(
+        f"{GAMES_URL}/{created['id']}/guess",
+        json={"answer": "Brasil", "finish": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_correct"] is True
+    assert response.json()["game"]["score"] == 1
+    assert response.json()["game"]["is_active"] is False
+
+
+def test_delete_removes_game(client: TestClient) -> None:
+    created = client.post(GAMES_URL).json()
+
+    response = client.delete(f"{GAMES_URL}/{created['id']}")
+
+    assert response.status_code == 204
+    assert client.get(f"{GAMES_URL}/{created['id']}").status_code == 404
+
+
+def test_get_missing_game_returns_404(client: TestClient) -> None:
+    response = client.get(f"{GAMES_URL}/999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Game 999 not found"
