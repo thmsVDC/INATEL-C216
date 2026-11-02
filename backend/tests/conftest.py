@@ -13,7 +13,7 @@ from app.api.routes.games import get_flag_provider
 from app.database import get_db
 from app.models import Base
 from app.repositories.game_repository import GameRepository
-from app.schemas.game import FlagQuestion
+from app.schemas.game import FlagQuestion, FlagQuizQuestion
 from app.services.game_service import GameService
 from main import app
 
@@ -36,6 +36,24 @@ class FakeFlagProvider:
         question = self.questions[min(self.index, len(self.questions) - 1)]
         self.index += 1
         return question
+
+    async def get_quiz_questions(self, count: int) -> list[FlagQuizQuestion]:
+        questions = []
+        for _ in range(count):
+            question = await self.get_random_flag()
+            distractors = [
+                country
+                for country in ["Brasil", "Canadá", "Chile", "Japão"]
+                if country != question.correct_country
+            ][:3]
+            questions.append(
+                FlagQuizQuestion(
+                    country=question.correct_country,
+                    flag_url=question.flag_url,
+                    choices=[question.correct_country, *distractors],
+                )
+            )
+        return questions
 
 
 @pytest.fixture

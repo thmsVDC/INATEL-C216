@@ -6,6 +6,9 @@ services:
     container_name: c216-frontend
     ports:
       - "5173:80"
+    depends_on:
+      backend:
+        condition: service_started
     networks:
       - c216-network
 
@@ -21,6 +24,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/c216db}
       REST_COUNTRIES_API_KEY: ${REST_COUNTRIES_API_KEY:-}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
     depends_on:
       db:
         condition: service_healthy

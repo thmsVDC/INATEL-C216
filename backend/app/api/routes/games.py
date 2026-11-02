@@ -25,13 +25,14 @@ def get_game_service(session: Session = Depends(get_db)) -> GameService:
     return GameService(GameRepository(session))
 
 
-def to_game_response(game) -> GameResponse:
+def to_game_response(game, choices: list[str] | None = None) -> GameResponse:
     return GameResponse(
         id=game.id,
         flag_url=game.flag_url,
         score=game.score,
         streak=game.streak,
         is_active=game.is_active,
+        choices=choices or [],
     )
 
 
@@ -64,9 +65,12 @@ async def create_game(
     provider: FlagProvider = Depends(get_flag_provider),
 ) -> GameResponse:
     try:
-        question: FlagQuestion = await provider.get_random_flag()
-        game = service.create_game(question)
-        return to_game_response(game)
+        questions = await provider.get_quiz_questions(1)
+        question = questions[0]
+        game = service.create_game(
+            FlagQuestion(correct_country=question.country, flag_url=question.flag_url)
+        )
+        return to_game_response(game, question.choices)
     except FlagProviderError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
 
@@ -105,22 +109,30 @@ async def submit_guess(
     provider: FlagProvider = Depends(get_flag_provider),
 ) -> GuessResponse:
     try:
-        current_game = service.get_game(game_id)
+        service.get_game(game_id)
 
         next_question = None
-        if service.is_correct_answer(current_game.correct_country, data.answer):
-            next_question = await provider.get_random_flag()
+        choices: list[str] = []
+        if not data.finish:
+            questions = await provider.get_quiz_questions(1)
+            quiz_question = questions[0]
+            next_question = FlagQuestion(
+                correct_country=quiz_question.country,
+                flag_url=quiz_question.flag_url,
+            )
+            choices = quiz_question.choices
 
         game, is_correct, correct_country = service.submit_guess(
             game_id,
             data.answer,
             next_question,
+            data.finish,
         )
 
         return GuessResponse(
             is_correct=is_correct,
             correct_country=correct_country,
-            game=to_game_response(game),
+            game=to_game_response(game, choices),
         )
     except GameNotFoundError as error:
         raise not_found(error) from error

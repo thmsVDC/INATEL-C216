@@ -1,136 +1,116 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App.jsx";
 
-const questions = [
-  {
-    country: "Brasil",
-    flag_url: "/br.png",
-    choices: ["Brasil", "Japão", "Canadá", "França"],
-  },
-  {
-    country: "Japão",
-    flag_url: "/jp.png",
-    choices: ["Japão", "Portugal", "Argentina", "Itália"],
-  },
-  {
-    country: "Canadá",
-    flag_url: "/ca.png",
-    choices: ["Canadá", "Alemanha", "Brasil", "Estados Unidos"],
-  },
-  {
-    country: "França",
-    flag_url: "/fr.png",
-    choices: ["França", "Itália", "Portugal", "Argentina"],
-  },
-  {
-    country: "Alemanha",
-    flag_url: "/de.png",
-    choices: ["Alemanha", "Japão", "Coreia do Sul", "Canadá"],
-  },
-  {
-    country: "Itália",
-    flag_url: "/it.png",
-    choices: ["Itália", "Brasil", "Estados Unidos", "Alemanha"],
-  },
-  {
-    country: "Portugal",
-    flag_url: "/pt.png",
-    choices: ["Portugal", "França", "Japão", "Coreia do Sul"],
-  },
-  {
-    country: "Argentina",
-    flag_url: "/ar.png",
-    choices: ["Argentina", "Canadá", "Itália", "Portugal"],
-  },
-  {
-    country: "Estados Unidos",
-    flag_url: "/us.png",
-    choices: ["Estados Unidos", "Alemanha", "França", "Brasil"],
-  },
-  {
-    country: "Coreia do Sul",
-    flag_url: "/kr.png",
-    choices: ["Coreia do Sul", "Japão", "Argentina", "Canadá"],
-  },
+const countries = [
+  "Brasil",
+  "Japão",
+  "Canadá",
+  "França",
+  "Alemanha",
+  "Itália",
+  "Portugal",
+  "Argentina",
+  "Estados Unidos",
+  "Coreia do Sul",
 ];
 
-describe("Quiz das Bandeiras", () => {
-  beforeEach(() => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
+function mockGameApi() {
+  let index = 0;
+  let score = 0;
+  let streak = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url, options = {}) => {
+      if (url === "/api/v1/games") {
+        return {
+          ok: true,
+          json: async () => ({
+            id: 7,
+            flag_url: "/flags/br.png",
+            score,
+            streak,
+            is_active: true,
+            choices: [countries[0], "Japão", "Canadá", "França"],
+          }),
+        };
+      }
+
+      const { answer, finish } = JSON.parse(options.body);
+      const isCorrect = answer === countries[index];
+      if (isCorrect) {
+        score += 1;
+        streak += 1;
+      } else {
+        streak = 0;
+      }
+      const correctCountry = countries[index];
+      index += 1;
+      const nextCountry = countries[index] || correctCountry;
+      return {
         ok: true,
-        json: async () => questions,
-      }),
-    );
-  });
+        json: async () => ({
+          is_correct: isCorrect,
+          correct_country: isCorrect ? null : correctCountry,
+          game: {
+            id: 7,
+            flag_url: `/flags/${index}.png`,
+            score,
+            streak,
+            is_active: !finish,
+            choices: [
+              nextCountry,
+              ...countries.filter((country) => country !== nextCountry).slice(0, 3),
+            ],
+          },
+        }),
+      };
+    }),
+  );
+}
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
+describe("Quiz das Bandeiras", () => {
+  afterEach(() => vi.unstubAllGlobals());
 
-  it("shows the first flag and advances after a correct answer", async () => {
+  it("persists answers through the games API and completes a round", async () => {
+    mockGameApi();
     const user = userEvent.setup();
     render(<App />);
 
     expect(
-      await screen.findByRole("img", { name: "Bandeira de Brasil" }),
+      await screen.findByRole("img", { name: "Bandeira do desafio atual" }),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Brasil" }));
 
-    expect(screen.getByRole("status")).toHaveTextContent("Resposta correta");
-    expect(screen.getByText("Acertos")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Próxima bandeira" }));
-
-    expect(screen.getByRole("img", { name: "Bandeira de Japão" })).toBeInTheDocument();
-  });
-
-  it("reveals the correct answer and resets the streak after a wrong answer", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await screen.findByRole("img", { name: "Bandeira de Brasil" });
-    await user.click(screen.getByRole("button", { name: "Japão" }));
-
-    expect(screen.getByRole("status")).toHaveTextContent("A resposta era Brasil");
-    expect(screen.getByText("Sequência").parentElement).toHaveTextContent("0");
-    expect(screen.getByRole("button", { name: "Brasil" })).toBeDisabled();
-  });
-
-  it("completes the quiz and can start a new round", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await screen.findByRole("img", { name: "Bandeira de Brasil" });
-    for (const country of [
-      "Brasil",
-      "Japão",
-      "Canadá",
-      "França",
-      "Alemanha",
-      "Itália",
-      "Portugal",
-      "Argentina",
-      "Estados Unidos",
-      "Coreia do Sul",
-    ]) {
-      await user.click(screen.getByRole("button", { name: country }));
-      const nextLabel =
-        country === "Coreia do Sul" ? "Ver resultado" : "Próxima bandeira";
-      await user.click(screen.getByRole("button", { name: nextLabel }));
+    for (let index = 0; index < 10; index += 1) {
+      const country = countries[index];
+      await user.click(screen.getByRole("button", { name: country, exact: true }));
+      expect(await screen.findByRole("status")).toHaveTextContent("Resposta correta");
+      if (index < 9) {
+        await user.click(screen.getByRole("button", { name: "Próxima bandeira" }));
+      }
     }
 
-    expect(screen.getByRole("heading", { name: "Perfeito!" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ver resultado" }));
+    expect(await screen.findByRole("heading", { name: "Perfeito!" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Perfeito!" })).toHaveTextContent(
-      /Você acertou 10 de 10/,
+      /Você acertou 10 de 10 bandeiras/,
     );
+    expect(fetch).toHaveBeenCalledTimes(11);
+    expect(fetch).toHaveBeenLastCalledWith(
+      "/api/v1/games/7/guess",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 
-    await user.click(screen.getByRole("button", { name: /Jogar novamente/ }));
-    expect(
-      await screen.findByRole("img", { name: "Bandeira de Brasil" }),
-    ).toBeInTheDocument();
+  it("shows a useful message when the backend cannot be reached", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    render(<App />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível conectar",
+    );
+    expect(screen.getByRole("button", { name: /Tentar novamente/ })).toBeInTheDocument();
   });
 });

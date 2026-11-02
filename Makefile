@@ -10,8 +10,8 @@ RUFF := poetry run ruff
 help:
 	@echo "Comandos disponiveis:"
 	@echo "  install        - Instalar dependencias"
-	@echo "  test           - Executar testes"
-	@echo "  lint           - Executar linter"
+	@echo "  test           - Executar testes backend, frontend e E2E"
+	@echo "  lint           - Verificar backend e frontend"
 	@echo "  format         - Formatar codigo"
 	@echo "  run            - Executar servidor"
 	@echo "  clean          - Limpar artefatos"
@@ -38,9 +38,12 @@ install:
 
 test:
 	cd $(BACKEND_DIR) && $(PYTEST)
+	npm --prefix $(FRONTEND_DIR) run test
+	npm --prefix $(FRONTEND_DIR) run test:e2e
 
 lint:
 	cd $(BACKEND_DIR) && $(RUFF) check .
+	npm --prefix $(FRONTEND_DIR) run lint
 
 format:
 	cd $(BACKEND_DIR) && $(RUFF) format .

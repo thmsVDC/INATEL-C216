@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { fetchQuizQuestions } from "./api/flags.js";
+import { createGame, submitGuess } from "./api/games.js";
 import Header from "./components/Header.jsx";
 import ResultScreen from "./components/ResultScreen.jsx";
 
 export default function App() {
-  const [questions, setQuestions] = useState([]);
+  const [game, setGame] = useState(null);
+  const [displayQuestion, setDisplayQuestion] = useState(null);
   const [questionIndex, setQuestionIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [streak, setStreak] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [guessResult, setGuessResult] = useState(null);
   const [isFinished, setIsFinished] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionError, setActionError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -18,13 +20,14 @@ export default function App() {
     setIsLoading(true);
     setLoadError("");
     try {
-      const nextQuestions = await fetchQuizQuestions();
-      setQuestions(nextQuestions);
+      const nextGame = await createGame();
+      setGame(nextGame);
+      setDisplayQuestion({ flag_url: nextGame.flag_url, choices: nextGame.choices });
       setQuestionIndex(0);
-      setScore(0);
-      setStreak(0);
       setSelectedAnswer(null);
+      setGuessResult(null);
       setIsFinished(false);
+      setActionError("");
     } catch (error) {
       setLoadError(error.message);
     } finally {
@@ -36,34 +39,48 @@ export default function App() {
     loadQuestions();
   }, [loadQuestions]);
 
-  const question = questions[questionIndex];
-  const isCorrect = selectedAnswer === question?.country;
-  const progress = isFinished
-    ? 100
-    : questions.length > 0
-      ? ((questionIndex + 1) / questions.length) * 100
-      : 0;
+  const question = displayQuestion
+    ? {
+        image: displayQuestion.flag_url,
+        choices: displayQuestion.choices,
+      }
+    : null;
+  const isCorrect = guessResult?.is_correct;
+  const progress = isFinished ? 100 : game ? ((questionIndex + 1) / 10) * 100 : 0;
 
-  function chooseAnswer(answer) {
-    if (selectedAnswer !== null || !question) return;
-
+  async function chooseAnswer(answer) {
+    if (selectedAnswer !== null || !question || !game?.is_active || isSubmitting) return;
     setSelectedAnswer(answer);
-    if (answer === question.country) {
-      setScore((currentScore) => currentScore + 1);
-      setStreak((currentStreak) => currentStreak + 1);
-    } else {
-      setStreak(0);
+    await saveGuess(answer);
+  }
+
+  async function saveGuess(answer = selectedAnswer) {
+    if (!game || answer === null || isSubmitting) return;
+    const finish = questionIndex === 9;
+    setIsSubmitting(true);
+    setActionError("");
+    try {
+      const result = await submitGuess(game.id, answer, finish);
+      setGame(result.game);
+      setGuessResult(result);
+    } catch (error) {
+      setActionError(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   function goToNextQuestion() {
-    if (questionIndex === questions.length - 1) {
+    if (!game || !guessResult) return;
+    if (questionIndex === 9) {
       setIsFinished(true);
       return;
     }
-
+    setDisplayQuestion({ flag_url: game.flag_url, choices: game.choices });
     setQuestionIndex((currentIndex) => currentIndex + 1);
     setSelectedAnswer(null);
+    setGuessResult(null);
+    setActionError("");
   }
 
   return (
@@ -93,11 +110,7 @@ export default function App() {
               </button>
             </section>
           ) : isFinished ? (
-            <ResultScreen
-              onRestart={loadQuestions}
-              score={score}
-              total={questions.length}
-            />
+            <ResultScreen onRestart={loadQuestions} score={game?.score ?? 0} total={10} />
           ) : question ? (
             <>
               <div className="mb-7 text-center">
@@ -108,36 +121,30 @@ export default function App() {
                   De onde é esta bandeira?
                 </h1>
                 <p className="mx-auto mt-4 max-w-lg text-base leading-7 text-slate-400">
-                  Escolha o país correspondente. São {questions.length} desafios para
-                  testar seu conhecimento.
+                  Escolha o país correspondente. São 10 desafios para testar seu
+                  conhecimento.
                 </p>
               </div>
 
               <div className="mb-5 flex items-center justify-between text-sm">
                 <span className="font-semibold text-slate-300">
-                  Bandeira <span className="text-white">{questionIndex + 1}</span> de{" "}
-                  {questions.length}
+                  Bandeira <span className="text-white">{questionIndex + 1}</span> de 10
                 </span>
                 <div className="flex gap-5 text-slate-400">
                   <span>
-                    Acertos <strong className="ml-1 text-white">{score}</strong>
+                    Acertos <strong className="ml-1 text-white">{game.score}</strong>
                   </span>
                   <span>
-                    Sequência <strong className="ml-1 text-white">{streak}</strong>
+                    Sequência <strong className="ml-1 text-white">{game.streak}</strong>
                   </span>
                 </div>
               </div>
 
               <div
-                aria-label={[
-                  "Progresso: ",
-                  questionIndex + 1,
-                  " de ",
-                  questions.length,
-                ].join("")}
+                aria-label={["Progresso: ", questionIndex + 1, " de ", 10].join("")}
                 className="mb-7 h-2 overflow-hidden rounded-full bg-white/10"
                 role="progressbar"
-                aria-valuemax={questions.length}
+                aria-valuemax={10}
                 aria-valuemin={0}
                 aria-valuenow={questionIndex + 1}
               >
@@ -153,7 +160,7 @@ export default function App() {
               >
                 <div className="grid min-h-48 place-items-center rounded-3xl border border-white/5 bg-slate-950/70 p-6 sm:min-h-60">
                   <img
-                    alt={["Bandeira de ", question.country].join("")}
+                    alt="Bandeira do desafio atual"
                     className="max-h-40 w-full max-w-sm object-contain drop-shadow-2xl sm:max-h-48"
                     src={question.image}
                   />
@@ -162,8 +169,7 @@ export default function App() {
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   {question.choices.map((choice, index) => {
                     const isSelected = selectedAnswer === choice;
-                    const isAnswer =
-                      selectedAnswer !== null && choice === question.country;
+                    const isAnswer = guessResult?.correct_country === choice;
                     const stateClass =
                       selectedAnswer === null
                         ? "answer-idle"
@@ -194,7 +200,21 @@ export default function App() {
                   })}
                 </div>
 
-                {selectedAnswer !== null && (
+                {actionError && (
+                  <p className="mt-4 text-center text-rose-300" role="alert">
+                    {actionError}
+                  </p>
+                )}
+                {selectedAnswer !== null && actionError && !guessResult && (
+                  <button
+                    className="button-primary mt-4 w-full"
+                    onClick={() => saveGuess()}
+                    type="button"
+                  >
+                    Tentar salvar resposta novamente
+                  </button>
+                )}
+                {selectedAnswer !== null && guessResult && (
                   <div aria-live="polite" className="mt-5" role="status">
                     <p
                       className={
@@ -204,16 +224,22 @@ export default function App() {
                     >
                       {isCorrect
                         ? "Resposta correta! Mandou bem."
-                        : ["Quase! A resposta era ", question.country, "."].join("")}
+                        : [
+                            "Quase! A resposta era ",
+                            guessResult.correct_country,
+                            ".",
+                          ].join("")}
                     </p>
                     <button
                       className="button-primary mt-4 w-full"
                       onClick={goToNextQuestion}
                       type="button"
                     >
-                      {questionIndex === questions.length - 1
-                        ? "Ver resultado"
-                        : "Próxima bandeira"}
+                      {isSubmitting
+                        ? "Salvando..."
+                        : questionIndex === 9
+                          ? "Ver resultado"
+                          : "Próxima bandeira"}
                       <span aria-hidden="true">→</span>
                     </button>
                   </div>

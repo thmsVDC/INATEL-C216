@@ -27,6 +27,7 @@ class GameResponse(BaseModel):
     score: int
     streak: int
     is_active: bool
+    choices: list[str] = Field(default_factory=list)
 
 
 class GameReplace(BaseModel):
@@ -47,6 +48,7 @@ class GamePatch(BaseModel):
 
 class GuessRequest(BaseModel):
     answer: str = Field(min_length=1)
+    finish: bool = False
 
 
 class GuessResponse(BaseModel):

@@ -27,6 +27,19 @@ def test_game_is_persisted_across_sessions(db_session: Session) -> None:
     assert persisted.correct_country == "Brasil"
 
 
+def test_cors_allows_the_local_frontend_origin(client: TestClient) -> None:
+    response = client.options(
+        GAMES_URL,
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
 def test_post_starts_game_without_revealing_answer(
     client: TestClient,
 ) -> None:
@@ -36,6 +49,7 @@ def test_post_starts_game_without_revealing_answer(
     assert response.json()["flag_url"] == "https://example.com/br.png"
     assert response.json()["score"] == 0
     assert "correct_country" not in response.json()
+    assert len(response.json()["choices"]) == 4
 
 
 def test_get_games_accepts_limit_query(client: TestClient) -> None:
@@ -123,6 +137,20 @@ def test_wrong_guess_returns_answer_and_resets_streak(
     assert response.json()["is_correct"] is False
     assert response.json()["correct_country"] == "Brasil"
     assert response.json()["game"]["streak"] == 0
+
+
+def test_final_guess_closes_game_and_persists_score(client: TestClient) -> None:
+    created = client.post(GAMES_URL).json()
+
+    response = client.post(
+        f"{GAMES_URL}/{created['id']}/guess",
+        json={"answer": "Brasil", "finish": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_correct"] is True
+    assert response.json()["game"]["score"] == 1
+    assert response.json()["game"]["is_active"] is False
 
 
 def test_delete_removes_game(client: TestClient) -> None:

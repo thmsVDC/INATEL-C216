@@ -48,6 +48,7 @@ class GameService:
         game_id: int,
         answer: str,
         next_question: FlagQuestion | None = None,
+        finish: bool = False,
     ) -> tuple[Game, bool, str | None]:
         game = self.get_game(game_id)
         is_correct = self.is_correct_answer(game.correct_country, answer)
@@ -56,12 +57,15 @@ class GameService:
         if is_correct:
             game.score += 1
             game.streak += 1
-            if next_question is not None:
-                game.correct_country = next_question.correct_country
-                game.flag_url = next_question.flag_url
         else:
             game.streak = 0
             correct_country = game.correct_country
+
+        if finish:
+            game.is_active = False
+        elif next_question is not None:
+            game.correct_country = next_question.correct_country
+            game.flag_url = next_question.flag_url
 
         return self.repository.save(game), is_correct, correct_country
 
