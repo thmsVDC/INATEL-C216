@@ -1,4 +1,4 @@
-.PHONY: help install backend-install frontend-install test lint format run front-dev front-build
+.PHONY: help install backend-install frontend-install test lint format run front-dev front-build docker-build docker-up docker-down docker-logs migrate migration
 
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
@@ -14,6 +14,12 @@ help:
 	@echo "  run              - Inicia a API FastAPI"
 	@echo "  front-dev        - Inicia o frontend Vite"
 	@echo "  front-build      - Gera o build de producao do frontend"
+	@echo "  docker-build     - Constroi as imagens Docker"
+	@echo "  docker-up        - Inicia frontend, backend e PostgreSQL"
+	@echo "  docker-down      - Para os servicos do Compose"
+	@echo "  docker-logs      - Exibe os logs dos servicos"
+	@echo "  migrate          - Aplica as migrations do banco"
+	@echo "  migration        - Cria uma migration Alembic"
 
 install: backend-install frontend-install
 
@@ -42,3 +48,21 @@ front-dev:
 
 front-build:
 	npm --prefix $(FRONTEND_DIR) run build
+
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up --build -d
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
+
+migrate:
+	cd $(BACKEND_DIR) && poetry run alembic upgrade head
+
+migration:
+	cd $(BACKEND_DIR) && poetry run alembic revision --autogenerate -m "$(name)"
