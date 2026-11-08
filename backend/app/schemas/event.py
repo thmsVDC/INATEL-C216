@@ -4,12 +4,34 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class EventData(BaseModel):
-    title: str = Field(min_length=3, max_length=120)
-    description: str | None = Field(default=None, max_length=3000)
-    category: str = Field(min_length=1, max_length=60)
-    location: str = Field(min_length=1, max_length=150)
-    starts_at: datetime
-    capacity: int = Field(gt=0, le=10000)
+    title: str = Field(
+        min_length=3,
+        max_length=120,
+        description="Nome público do evento.",
+    )
+    description: str | None = Field(
+        default=None,
+        max_length=3000,
+        description="Apresentação do evento. Campo opcional.",
+    )
+    category: str = Field(
+        min_length=1,
+        max_length=60,
+        description="Categoria usada para organizar e filtrar eventos.",
+    )
+    location: str = Field(
+        min_length=1,
+        max_length=150,
+        description="Local físico ou endereço do evento.",
+    )
+    starts_at: datetime = Field(
+        description="Data e hora de início em ISO 8601, incluindo o fuso horário."
+    )
+    capacity: int = Field(
+        gt=0,
+        le=10000,
+        description="Número máximo de participantes permitidos.",
+    )
 
     @field_validator("title", "category", "location")
     @classmethod
@@ -35,15 +57,41 @@ class EventData(BaseModel):
 
 
 class EventCreate(EventData):
-    pass
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "title": "Semana de Tecnologia",
+                    "description": "Palestras e oficinas sobre inovação.",
+                    "category": "Workshop",
+                    "location": "Auditório principal",
+                    "starts_at": "2026-11-20T09:00:00-03:00",
+                    "capacity": 120,
+                }
+            ]
+        }
+    )
 
 
 class EventUpdate(EventData):
-    pass
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "title": "Semana de Tecnologia 2026",
+                    "description": "Palestras, oficinas e networking.",
+                    "category": "Workshop",
+                    "location": "Centro de convenções",
+                    "starts_at": "2026-11-21T09:00:00-03:00",
+                    "capacity": 150,
+                }
+            ]
+        }
+    )
 
 
 class EventResponse(EventData):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    created_at: datetime
+    id: int = Field(description="Identificador único do evento.")
+    created_at: datetime = Field(description="Data de criação do registro.")

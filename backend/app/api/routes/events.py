@@ -27,15 +27,48 @@ def not_found(error: EventNotFoundError) -> HTTPException:
     return HTTPException(status_code=404, detail=str(error))
 
 
-@router.get("", response_model=list[EventResponse])
+@router.get(
+    "",
+    response_model=list[EventResponse],
+    summary="Listar eventos",
+    description=(
+        "Retorna eventos ordenados pela data de início. Você pode combinar "
+        "busca por título, categoria, período e paginação. As datas devem usar "
+        "ISO 8601 com fuso horário, por exemplo `2026-11-20T09:00:00-03:00`."
+    ),
+    response_description="Eventos encontrados para os filtros informados.",
+    responses={
+        422: {
+            "description": "Filtros inválidos ou período com datas inconsistentes."
+        }
+    },
+)
 def list_events(
     service: Annotated[EventService, Depends(get_event_service)],
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    query: Annotated[str | None, Query(alias="q", max_length=120)] = None,
-    category: Annotated[str | None, Query(max_length=60)] = None,
-    starts_after: Annotated[datetime | None, Query()] = None,
-    starts_before: Annotated[datetime | None, Query()] = None,
+    limit: Annotated[
+        int,
+        Query(ge=1, le=100, description="Quantidade máxima de eventos por página."),
+    ] = 50,
+    offset: Annotated[
+        int, Query(ge=0, description="Quantidade de eventos ignorados no início.")
+    ] = 0,
+    query: Annotated[
+        str | None,
+        Query(alias="q", max_length=120, description="Trecho do título do evento."),
+    ] = None,
+    category: Annotated[
+        str | None, Query(max_length=60, description="Categoria exata do evento.")
+    ] = None,
+    starts_after: Annotated[
+        datetime | None,
+        Query(
+            description="Início do período, inclusivo, em ISO 8601 com fuso horário."
+        ),
+    ] = None,
+    starts_before: Annotated[
+        datetime | None,
+        Query(description="Fim do período, inclusivo, em ISO 8601 com fuso horário."),
+    ] = None,
 ) -> Sequence[EventResponse]:
     try:
         return service.list_events(
@@ -50,9 +83,16 @@ def list_events(
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
-@router.get("/{event_id}", response_model=EventResponse)
+@router.get(
+    "/{event_id}",
+    response_model=EventResponse,
+    summary="Consultar evento",
+    description="Busca os detalhes de um evento pelo identificador.",
+    response_description="Dados completos do evento.",
+    responses={404: {"description": "Não existe evento com esse identificador."}},
+)
 def get_event(
-    event_id: Annotated[int, Path(gt=0)],
+    event_id: Annotated[int, Path(gt=0, description="Identificador do evento.")],
     service: Annotated[EventService, Depends(get_event_service)],
 ) -> EventResponse:
     try:
@@ -61,7 +101,17 @@ def get_event(
         raise not_found(error) from error
 
 
-@router.post("", response_model=EventResponse, status_code=201)
+@router.post(
+    "",
+    response_model=EventResponse,
+    status_code=201,
+    summary="Criar evento",
+    description=(
+        "Cadastra um evento e retorna o registro criado. A data deve incluir "
+        "fuso horário e a capacidade precisa ser maior que zero."
+    ),
+    response_description="Evento criado.",
+)
 def create_event(
     data: EventCreate,
     service: Annotated[EventService, Depends(get_event_service)],
@@ -69,10 +119,20 @@ def create_event(
     return service.create_event(data)
 
 
-@router.put("/{event_id}", response_model=EventResponse)
+@router.put(
+    "/{event_id}",
+    response_model=EventResponse,
+    summary="Atualizar evento",
+    description=(
+        "Substitui integralmente os dados editáveis de um evento. Envie todos "
+        "os campos exigidos no corpo da requisição."
+    ),
+    response_description="Evento atualizado.",
+    responses={404: {"description": "Não existe evento com esse identificador."}},
+)
 def update_event(
     data: EventUpdate,
-    event_id: Annotated[int, Path(gt=0)],
+    event_id: Annotated[int, Path(gt=0, description="Identificador do evento.")],
     service: Annotated[EventService, Depends(get_event_service)],
 ) -> EventResponse:
     try:
@@ -81,9 +141,19 @@ def update_event(
         raise not_found(error) from error
 
 
-@router.delete("/{event_id}", status_code=204)
+@router.delete(
+    "/{event_id}",
+    status_code=204,
+    summary="Excluir evento",
+    description=(
+        "Remove o evento. As inscrições associadas também são removidas. "
+        "A operação não retorna conteúdo."
+    ),
+    response_description="Evento removido com sucesso.",
+    responses={404: {"description": "Não existe evento com esse identificador."}},
+)
 def delete_event(
-    event_id: Annotated[int, Path(gt=0)],
+    event_id: Annotated[int, Path(gt=0, description="Identificador do evento.")],
     service: Annotated[EventService, Depends(get_event_service)],
 ) -> Response:
     try:

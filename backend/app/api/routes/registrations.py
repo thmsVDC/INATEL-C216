@@ -34,9 +34,19 @@ def event_not_found(error: EventNotFoundError) -> HTTPException:
     return HTTPException(status_code=404, detail=str(error))
 
 
-@router.get("", response_model=list[RegistrationResponse])
+@router.get(
+    "",
+    response_model=list[RegistrationResponse],
+    summary="Listar inscrições do evento",
+    description=(
+        "Retorna os participantes inscritos em um evento, na ordem em que "
+        "fizeram a inscrição."
+    ),
+    response_description="Inscrições do evento.",
+    responses={404: {"description": "Não existe evento com esse identificador."}},
+)
 def list_registrations(
-    event_id: Annotated[int, Path(gt=0)],
+    event_id: Annotated[int, Path(gt=0, description="Identificador do evento.")],
     service: Annotated[RegistrationService, Depends(get_registration_service)],
 ) -> list[RegistrationResponse]:
     try:
@@ -45,10 +55,25 @@ def list_registrations(
         raise event_not_found(error) from error
 
 
-@router.post("", response_model=RegistrationResponse, status_code=201)
+@router.post(
+    "",
+    response_model=RegistrationResponse,
+    status_code=201,
+    summary="Inscrever participante",
+    description=(
+        "Cria uma inscrição para o evento. O e-mail é normalizado para evitar "
+        "duplicidades. A API retorna `409` se o participante já estiver inscrito "
+        "ou se todas as vagas estiverem ocupadas."
+    ),
+    response_description="Inscrição criada.",
+    responses={
+        404: {"description": "Não existe evento com esse identificador."},
+        409: {"description": "E-mail já inscrito ou evento sem vagas."},
+    },
+)
 def create_registration(
     data: RegistrationCreate,
-    event_id: Annotated[int, Path(gt=0)],
+    event_id: Annotated[int, Path(gt=0, description="Identificador do evento.")],
     service: Annotated[RegistrationService, Depends(get_registration_service)],
 ) -> RegistrationResponse:
     try:
@@ -61,10 +86,24 @@ def create_registration(
         raise HTTPException(status_code=409, detail=str(error)) from error
 
 
-@router.delete("/{registration_id}", status_code=204)
+@router.delete(
+    "/{registration_id}",
+    status_code=204,
+    summary="Cancelar inscrição",
+    description=(
+        "Cancela a inscrição e libera a vaga correspondente. O identificador "
+        "da inscrição precisa pertencer ao evento informado."
+    ),
+    response_description="Inscrição cancelada com sucesso.",
+    responses={
+        404: {"description": "Evento ou inscrição não encontrado."},
+    },
+)
 def cancel_registration(
-    event_id: Annotated[int, Path(gt=0)],
-    registration_id: Annotated[int, Path(gt=0)],
+    event_id: Annotated[int, Path(gt=0, description="Identificador do evento.")],
+    registration_id: Annotated[
+        int, Path(gt=0, description="Identificador da inscrição a cancelar.")
+    ],
     service: Annotated[RegistrationService, Depends(get_registration_service)],
 ) -> Response:
     try:

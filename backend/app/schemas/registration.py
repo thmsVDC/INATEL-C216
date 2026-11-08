@@ -4,11 +4,26 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class RegistrationCreate(BaseModel):
-    participant_name: str = Field(min_length=2, max_length=120)
+    participant_name: str = Field(
+        min_length=2,
+        max_length=120,
+        description="Nome completo do participante.",
+    )
     participant_email: str = Field(
         min_length=6,
         max_length=254,
         pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$",
+        description="E-mail usado para identificar uma inscrição por evento.",
+    )
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "participant_name": "Ana Souza",
+                    "participant_email": "ana.souza@example.com",
+                }
+            ]
+        }
     )
 
     @field_validator("participant_name")
@@ -28,8 +43,10 @@ class RegistrationCreate(BaseModel):
 class RegistrationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    event_id: int
-    participant_name: str
-    participant_email: str
-    registered_at: datetime
+    id: int = Field(description="Identificador único da inscrição.")
+    event_id: int = Field(description="Identificador do evento associado.")
+    participant_name: str = Field(description="Nome informado pelo participante.")
+    participant_email: str = Field(description="E-mail normalizado do participante.")
+    registered_at: datetime = Field(
+        description="Data e hora em que a inscrição foi feita."
+    )
