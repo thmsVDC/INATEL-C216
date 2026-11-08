@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.routes.events import router as events_router
+from app.api.routes.registrations import router as registrations_router
 
 app = FastAPI(
     title="OrganizaJá API",
@@ -11,6 +12,7 @@ app = FastAPI(
     version="0.1.0",
 )
 app.include_router(events_router, prefix="/api/v1")
+app.include_router(registrations_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["health"])

@@ -38,6 +38,10 @@ class EventRepository:
     def get(self, event_id: int) -> Event | None:
         return self.session.get(Event, event_id)
 
+    def get_for_update(self, event_id: int) -> Event | None:
+        statement = select(Event).where(Event.id == event_id).with_for_update()
+        return self.session.scalar(statement)
+
     def create(self, event: Event) -> Event:
         self.session.add(event)
         self.session.commit()
