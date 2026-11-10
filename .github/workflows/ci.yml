@@ -18,23 +18,6 @@ jobs:
   quality:
     name: Test, lint e build
     runs-on: ubuntu-latest
-    env:
-      DATABASE_URL: postgresql+psycopg://organizaja:organizaja@localhost:5432/organizaja
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: organizaja
-          POSTGRES_USER: organizaja
-          POSTGRES_PASSWORD: organizaja
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U organizaja -d organizaja"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
 
     steps:
       - name: Baixar o código
@@ -64,10 +47,6 @@ jobs:
       - name: Instalar dependências do frontend
         run: npm ci --prefix frontend
 
-      - name: Validar migrations no PostgreSQL
-        working-directory: backend
-        run: poetry run alembic upgrade head
-
       - name: Executar testes
         run: make test
 
@@ -77,5 +56,30 @@ jobs:
       - name: Gerar build do frontend
         run: make front-build
 
-      - name: Construir imagens Docker
-        run: docker compose build
+      - name: Iniciar aplicação com PostgreSQL
+        run: make docker-up
+
+      - name: Aguardar API e frontend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8000/health \
+              && curl --fail --silent http://localhost:5173/ > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+
+      - name: Confirmar migration aplicada no PostgreSQL
+        run: docker compose exec -T backend alembic current
+
+      - name: Instalar navegador para E2E
+        run: cd frontend && npx playwright install --with-deps chromium
+
+      - name: Testar fluxo E2E com persistência real
+        run: PLAYWRIGHT_BASE_URL=http://localhost:5173 make e2e
+
+      - name: Encerrar Docker Compose
+        if: always()
+        run: make docker-down

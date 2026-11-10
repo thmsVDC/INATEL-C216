@@ -1,4 +1,4 @@
-.PHONY: help install backend-install frontend-install test lint format run front-dev front-build docker-build docker-up docker-down docker-logs migrate migration
+.PHONY: help install backend-install frontend-install test e2e-install e2e lint format run front-dev front-build docker-build docker-up docker-down docker-logs migrate migration
 
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
@@ -9,6 +9,8 @@ help:
 	@echo "  backend-install  - Instala as dependencias Python pelo Poetry"
 	@echo "  frontend-install - Instala as dependencias JavaScript"
 	@echo "  test             - Executa os testes automatizados"
+	@echo "  e2e-install      - Instala o Chromium usado nos testes E2E"
+	@echo "  e2e              - Executa os testes E2E no app em Docker"
 	@echo "  lint             - Verifica o estilo do backend e frontend"
 	@echo "  format           - Formata o codigo Python"
 	@echo "  run              - Inicia a API FastAPI"
@@ -32,6 +34,12 @@ frontend-install:
 test:
 	cd $(BACKEND_DIR) && poetry run pytest
 	npm --prefix $(FRONTEND_DIR) run test
+
+e2e-install:
+	cd $(FRONTEND_DIR) && npx playwright install chromium
+
+e2e:
+	npm --prefix $(FRONTEND_DIR) run e2e
 
 lint:
 	cd $(BACKEND_DIR) && poetry run ruff check .
