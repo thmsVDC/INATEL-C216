@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main, projeto-final]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Test, lint e build
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql+psycopg://organizaja:organizaja@localhost:5432/organizaja
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: organizaja
+          POSTGRES_USER: organizaja
+          POSTGRES_PASSWORD: organizaja
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U organizaja -d organizaja"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v7
+
+      - name: Instalar Poetry
+        run: pipx install poetry
+
+      - name: Preparar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: poetry
+          cache-dependency-path: backend/poetry.lock
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências do backend
+        working-directory: backend
+        run: poetry install --with dev
+
+      - name: Instalar dependências do frontend
+        run: npm ci --prefix frontend
+
+      - name: Validar migrations no PostgreSQL
+        working-directory: backend
+        run: poetry run alembic upgrade head
+
+      - name: Executar testes
+        run: make test
+
+      - name: Executar lint
+        run: make lint
+
+      - name: Gerar build do frontend
+        run: make front-build
+
+      - name: Construir imagens Docker
+        run: docker compose build
