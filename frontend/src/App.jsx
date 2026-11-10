@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { createEvent, deleteEvent, listEvents, updateEvent } from "./api/events.js";
+import {
+  cancelRegistration,
+  createRegistration,
+  listRegistrations,
+} from "./api/registrations.js";
 
 const EMPTY_FILTERS = { q: "", category: "", starts_after: "", starts_before: "" };
 
@@ -152,7 +157,201 @@ function EventDialog({ event, error, saving, onClose, onSave }) {
   );
 }
 
-function EventCard({ event, deleting, onDelete, onEdit }) {
+function RegistrationDialog({ event, onClose }) {
+  const [registrations, setRegistrations] = useState([]);
+  const [participantName, setParticipantName] = useState("");
+  const [participantEmail, setParticipantEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cancelingId, setCancelingId] = useState(null);
+
+  const loadRegistrations = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError("");
+    try {
+      setRegistrations(await listRegistrations(event.id));
+    } catch (error) {
+      setLoadError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [event.id]);
+
+  useEffect(() => {
+    loadRegistrations();
+  }, [loadRegistrations]);
+
+  const availableSeats = Math.max(event.capacity - registrations.length, 0);
+  const isFull = availableSeats === 0;
+
+  async function submitRegistration(formEvent) {
+    formEvent.preventDefault();
+    setIsSubmitting(true);
+    setActionError("");
+    setMessage("");
+    try {
+      const registration = await createRegistration(event.id, {
+        participant_name: participantName.trim(),
+        participant_email: participantEmail.trim(),
+      });
+      setRegistrations((current) => [...current, registration]);
+      setParticipantName("");
+      setParticipantEmail("");
+      setMessage("Inscrição realizada com sucesso.");
+    } catch (error) {
+      setActionError(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function removeRegistration(registration) {
+    setCancelingId(registration.id);
+    setActionError("");
+    setMessage("");
+    try {
+      await cancelRegistration(event.id, registration.id);
+      setRegistrations((current) =>
+        current.filter((item) => item.id !== registration.id),
+      );
+      setMessage(`Inscrição de ${registration.participant_name} cancelada.`);
+    } catch (error) {
+      setActionError(error.message);
+    } finally {
+      setCancelingId(null);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop">
+      <section
+        aria-labelledby="registration-dialog-title"
+        aria-modal="true"
+        className="event-dialog registration-dialog"
+        role="dialog"
+      >
+        <div className="dialog-heading">
+          <div>
+            <p className="eyebrow">Participantes e vagas</p>
+            <h2 id="registration-dialog-title">{event.title}</h2>
+            <p className="dialog-event-meta">{formatDate(event.starts_at)} · {event.location}</p>
+          </div>
+          <button
+            aria-label="Fechar inscrições"
+            className="icon-button"
+            onClick={onClose}
+            type="button"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="capacity-summary">
+          <div className="capacity-labels">
+            <strong>{availableSeats} {availableSeats === 1 ? "vaga disponível" : "vagas disponíveis"}</strong>
+            <span>{registrations.length} de {event.capacity} ocupadas</span>
+          </div>
+          <div
+            aria-label={`${registrations.length} de ${event.capacity} vagas ocupadas`}
+            aria-valuemax={event.capacity}
+            aria-valuemin={0}
+            aria-valuenow={registrations.length}
+            className="capacity-track"
+            role="progressbar"
+          >
+            <div
+              className="capacity-fill"
+              style={{ width: `${Math.min((registrations.length / event.capacity) * 100, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {message && <p className="success-message" role="status">{message}</p>}
+        {actionError && <p className="form-error registration-error" role="alert">{actionError}</p>}
+
+        <section aria-labelledby="registration-form-title" className="registration-form-section">
+          <h3 id="registration-form-title">Inscrever participante</h3>
+          {isFull ? (
+            <p className="full-event-note">As vagas deste evento foram preenchidas.</p>
+          ) : (
+            <form className="registration-form" onSubmit={submitRegistration}>
+              <label className="field">
+                <span>Nome</span>
+                <input
+                  maxLength={120}
+                  minLength={2}
+                  onChange={(formEvent) => setParticipantName(formEvent.target.value)}
+                  placeholder="Nome completo"
+                  required
+                  value={participantName}
+                />
+              </label>
+              <label className="field">
+                <span>E-mail</span>
+                <input
+                  onChange={(formEvent) => setParticipantEmail(formEvent.target.value)}
+                  placeholder="voce@exemplo.com"
+                  required
+                  type="email"
+                  value={participantEmail}
+                />
+              </label>
+              <button className="button button-primary registration-submit" disabled={isSubmitting} type="submit">
+                {isSubmitting ? "Inscrevendo..." : "Confirmar inscrição"}
+              </button>
+            </form>
+          )}
+        </section>
+
+        <section aria-labelledby="participants-title" className="participants-section">
+          <div className="participants-heading">
+            <h3 id="participants-title">Lista de inscritos</h3>
+            <span>{registrations.length}</span>
+          </div>
+
+          {isLoading ? (
+            <p aria-live="polite" className="registration-loading" role="status">Carregando participantes...</p>
+          ) : loadError ? (
+            <div className="registration-load-error" role="alert">
+              <p>{loadError}</p>
+              <button className="text-button" onClick={loadRegistrations} type="button">Tentar novamente</button>
+            </div>
+          ) : registrations.length === 0 ? (
+            <p className="no-participants">Ninguém se inscreveu ainda. Seja o primeiro!</p>
+          ) : (
+            <ul className="participant-list">
+              {registrations.map((registration) => (
+                <li className="participant-row" key={registration.id}>
+                  <div className="participant-avatar" aria-hidden="true">
+                    {registration.participant_name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="participant-info">
+                    <strong>{registration.participant_name}</strong>
+                    <span>{registration.participant_email}</span>
+                  </div>
+                  <button
+                    aria-label={`Cancelar inscrição de ${registration.participant_name}`}
+                    className="text-button cancel-registration"
+                    disabled={cancelingId === registration.id}
+                    onClick={() => removeRegistration(registration)}
+                    type="button"
+                  >
+                    {cancelingId === registration.id ? "Cancelando..." : "Cancelar"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </section>
+    </div>
+  );
+}
+
+function EventCard({ event, deleting, onDelete, onEdit, onRegistrations }) {
   return (
     <article className="event-card">
       <div className="event-card-topline">
@@ -177,6 +376,13 @@ function EventCard({ event, deleting, onDelete, onEdit }) {
           <dd>{event.capacity} participantes</dd>
         </div>
       </dl>
+      <button
+        className="button button-registration"
+        onClick={() => onRegistrations(event)}
+        type="button"
+      >
+        <span aria-hidden="true">◎</span> Inscrições e vagas
+      </button>
       <div className="event-card-actions">
         <button className="button button-secondary" onClick={() => onEdit(event)} type="button">
           Editar
@@ -203,6 +409,7 @@ export default function App() {
   const [actionError, setActionError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [registrationEvent, setRegistrationEvent] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -398,6 +605,7 @@ export default function App() {
                 key={event.id}
                 onDelete={removeEvent}
                 onEdit={openEditDialog}
+                onRegistrations={setRegistrationEvent}
               />
             ))}
           </div>
@@ -431,6 +639,12 @@ export default function App() {
           onClose={() => setDialogOpen(false)}
           onSave={saveEvent}
           saving={isSaving}
+        />
+      )}
+      {registrationEvent && (
+        <RegistrationDialog
+          event={registrationEvent}
+          onClose={() => setRegistrationEvent(null)}
         />
       )}
     </main>

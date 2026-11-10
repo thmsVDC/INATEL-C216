@@ -332,6 +332,20 @@ textarea {
 
 .button-danger:hover:not(:disabled) { background: #fff6f5; }
 
+.button-registration {
+  width: 100%;
+  min-height: 2.5rem;
+  margin-top: auto;
+  border-color: #dce8e5;
+  color: #356a61;
+  background: #f1faf6;
+}
+
+.button-registration:hover:not(:disabled) {
+  border-color: #b8ddd0;
+  background: #e7f6ef;
+}
+
 .text-button,
 .icon-button {
   border: 0;
@@ -538,6 +552,11 @@ textarea {
   box-shadow: 0 2rem 5rem rgb(18 34 51 / 26%);
 }
 
+.registration-dialog {
+  max-height: calc(100vh - 2.5rem);
+  overflow-y: auto;
+}
+
 .dialog-heading {
   display: flex;
   align-items: start;
@@ -581,6 +600,178 @@ textarea {
   font-size: 0.83rem;
 }
 
+.dialog-event-meta {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.capacity-summary {
+  margin: 0 0 1.5rem;
+  padding: 1rem;
+  border: 1px solid #e3eee9;
+  border-radius: 1rem;
+  background: #f7fbf9;
+}
+
+.capacity-labels,
+.participants-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.capacity-labels strong {
+  color: #315e54;
+  font-size: 0.9rem;
+}
+
+.capacity-labels span,
+.participants-heading span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.capacity-track {
+  height: 0.55rem;
+  overflow: hidden;
+  margin-top: 0.8rem;
+  border-radius: 999px;
+  background: #e4ece8;
+}
+
+.capacity-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #72c7a7, #3a9d7c);
+  transition: width 200ms ease;
+}
+
+.registration-form-section,
+.participants-section {
+  padding-top: 1.2rem;
+  border-top: 1px solid #edf0f4;
+}
+
+.registration-form-section h3,
+.participants-heading h3 {
+  margin: 0 0 0.9rem;
+  color: #2c4255;
+  font-size: 1rem;
+}
+
+.registration-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.8rem;
+}
+
+.registration-submit {
+  grid-column: 1 / -1;
+}
+
+.full-event-note,
+.no-participants,
+.registration-loading {
+  margin: 0;
+  padding: 0.85rem;
+  border-radius: 0.75rem;
+  color: #667888;
+  background: #f6f8fb;
+  font-size: 0.84rem;
+}
+
+.registration-error {
+  margin-bottom: 1rem;
+}
+
+.participants-section {
+  margin-top: 1.35rem;
+}
+
+.participants-heading h3 { margin-bottom: 0.8rem; }
+
+.participants-heading span {
+  display: grid;
+  min-width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border-radius: 999px;
+  color: #4266c6;
+  background: #edf2ff;
+  font-weight: 800;
+}
+
+.participant-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.participant-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem;
+  border: 1px solid #edf0f4;
+  border-radius: 0.85rem;
+}
+
+.participant-avatar {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.75rem;
+  color: #4266c6;
+  background: #edf2ff;
+  font-weight: 800;
+}
+
+.participant-info {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 0.2rem;
+}
+
+.participant-info strong,
+.participant-info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.participant-info strong { color: #34495c; font-size: 0.83rem; }
+.participant-info span { color: var(--muted); font-size: 0.75rem; }
+
+.cancel-registration {
+  flex: 0 0 auto;
+  color: #ad4e4a;
+}
+
+.cancel-registration:hover { color: #8e302d; }
+
+.registration-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.8rem;
+  border-radius: 0.75rem;
+  color: #8e3f3b;
+  background: #fff8f7;
+  font-size: 0.84rem;
+}
+
+.registration-load-error p { margin: 0; }
+
 @media (max-width: 1050px) {
   .hero-art { right: -3rem; opacity: 0.5; }
   .hero-copy { max-width: 37rem; }
@@ -609,6 +800,9 @@ textarea {
   .error-panel { align-items: start; flex-direction: column; }
   .site-footer { flex-direction: column; gap: 0.35rem; }
   .event-form { grid-template-columns: 1fr; }
+  .registration-form { grid-template-columns: 1fr; }
+  .registration-submit { grid-column: auto; }
+  .registration-load-error { align-items: start; flex-direction: column; }
   .field-wide { grid-column: auto; }
   .form-actions { grid-column: auto; }
   .form-actions .button { flex: 1; }
