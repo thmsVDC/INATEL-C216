@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main, projeto-final]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Test, lint e build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v7
+
+      - name: Instalar Poetry
+        run: pipx install poetry
+
+      - name: Preparar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: poetry
+          cache-dependency-path: backend/poetry.lock
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências do backend
+        working-directory: backend
+        run: poetry install --with dev --no-root
+
+      - name: Instalar dependências do frontend
+        run: npm ci --prefix frontend
+
+      - name: Executar testes
+        run: make test
+
+      - name: Executar lint
+        run: make lint
+
+      - name: Gerar build do frontend
+        run: make front-build
+
+      - name: Iniciar aplicação com PostgreSQL
+        run: make docker-up
+
+      - name: Aguardar API e frontend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8000/health \
+              && curl --fail --silent http://localhost:5173/ > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+
+      - name: Confirmar migration aplicada no PostgreSQL
+        run: docker compose exec -T backend alembic current
+
+      - name: Instalar navegador para E2E
+        run: cd frontend && npx playwright install --with-deps chromium
+
+      - name: Testar fluxo E2E com persistência real
+        run: PLAYWRIGHT_BASE_URL=http://localhost:5173 make e2e
+
+      - name: Encerrar Docker Compose
+        if: always()
+        run: make docker-down

@@ -1,0 +1,76 @@
+.PHONY: help install backend-install frontend-install test e2e-install e2e lint format run front-dev front-build docker-build docker-up docker-down docker-logs migrate migration
+
+BACKEND_DIR := backend
+FRONTEND_DIR := frontend
+
+help:
+	@echo "Comandos do OrganizaJa:"
+	@echo "  install          - Instala as dependencias do backend e frontend"
+	@echo "  backend-install  - Instala as dependencias Python pelo Poetry"
+	@echo "  frontend-install - Instala as dependencias JavaScript"
+	@echo "  test             - Executa os testes automatizados"
+	@echo "  e2e-install      - Instala o Chromium usado nos testes E2E"
+	@echo "  e2e              - Executa os testes E2E no app em Docker"
+	@echo "  lint             - Verifica o estilo do backend e frontend"
+	@echo "  format           - Formata o codigo Python"
+	@echo "  run              - Inicia a API FastAPI"
+	@echo "  front-dev        - Inicia o frontend Vite"
+	@echo "  front-build      - Gera o build de producao do frontend"
+	@echo "  docker-build     - Constroi as imagens Docker"
+	@echo "  docker-up        - Inicia frontend, backend e PostgreSQL"
+	@echo "  docker-down      - Para os servicos do Compose"
+	@echo "  docker-logs      - Exibe os logs dos servicos"
+	@echo "  migrate          - Aplica as migrations do banco"
+	@echo "  migration        - Cria uma migration Alembic"
+
+install: backend-install frontend-install
+
+backend-install:
+	cd $(BACKEND_DIR) && poetry install --no-root
+
+frontend-install:
+	npm --prefix $(FRONTEND_DIR) install
+
+test:
+	cd $(BACKEND_DIR) && poetry run pytest
+	npm --prefix $(FRONTEND_DIR) run test
+
+e2e-install:
+	cd $(FRONTEND_DIR) && npx playwright install chromium
+
+e2e:
+	npm --prefix $(FRONTEND_DIR) run e2e
+
+lint:
+	cd $(BACKEND_DIR) && poetry run ruff check .
+	npm --prefix $(FRONTEND_DIR) run lint
+
+format:
+	cd $(BACKEND_DIR) && poetry run ruff format .
+
+run:
+	cd $(BACKEND_DIR) && poetry run uvicorn main:app --reload
+
+front-dev:
+	npm --prefix $(FRONTEND_DIR) run dev
+
+front-build:
+	npm --prefix $(FRONTEND_DIR) run build
+
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up --build -d
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
+
+migrate:
+	cd $(BACKEND_DIR) && poetry run alembic upgrade head
+
+migration:
+	cd $(BACKEND_DIR) && poetry run alembic revision --autogenerate -m "$(name)"

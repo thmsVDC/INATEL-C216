@@ -1,0 +1,62 @@
+name: organizaja
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: organizaja-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - organizaja-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: organizaja-backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://${ORGANIZAJA_POSTGRES_USER:-organizaja}:${ORGANIZAJA_POSTGRES_PASSWORD:-organizaja}@db:5432/${ORGANIZAJA_POSTGRES_DB:-organizaja}
+      FRONTEND_ORIGIN: ${ORGANIZAJA_FRONTEND_ORIGIN:-http://localhost:5173}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - organizaja-network
+
+  db:
+    image: postgres:16-alpine
+    container_name: organizaja-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${ORGANIZAJA_POSTGRES_DB:-organizaja}
+      POSTGRES_USER: ${ORGANIZAJA_POSTGRES_USER:-organizaja}
+      POSTGRES_PASSWORD: ${ORGANIZAJA_POSTGRES_PASSWORD:-organizaja}
+    ports:
+      - "5432:5432"
+    volumes:
+      - organizaja_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${ORGANIZAJA_POSTGRES_USER:-organizaja} -d ${ORGANIZAJA_POSTGRES_DB:-organizaja}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - organizaja-network
+
+volumes:
+  organizaja_postgres_data:
+
+networks:
+  organizaja-network:
+    driver: bridge
