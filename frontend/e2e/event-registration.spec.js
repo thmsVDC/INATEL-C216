@@ -1,5 +1,16 @@
 import { expect, test } from "@playwright/test";
 
+let createdEventId;
+
+test.afterEach(async ({ page }) => {
+  if (!createdEventId) return;
+
+  await page.evaluate(async (eventId) => {
+    await fetch(`/api/v1/events/${eventId}`, { method: "DELETE" });
+  }, createdEventId);
+  createdEventId = undefined;
+});
+
 test("cria evento, persiste inscrição após recarregar e libera vaga ao cancelar", async ({
   page,
 }) => {
@@ -12,12 +23,19 @@ test("cria evento, persiste inscrição após recarregar e libera vaga ao cancel
 
   await page.goto("/");
   await page.getByRole("button", { name: "Criar evento", exact: true }).click();
-  await page.getByLabel("Nome do evento").fill(title);
-  await page.getByLabel("Categoria").fill("Teste E2E");
-  await page.getByLabel("Local").fill("Auditório de testes");
-  await page.getByLabel("Data e horário").fill(startsAt);
-  await page.getByLabel("Vagas disponíveis").fill("1");
-  await page.getByRole("button", { name: "Criar evento", exact: true }).last().click();
+  const eventDialog = page.getByRole("dialog");
+  await eventDialog.getByLabel("Nome do evento").fill(title);
+  await eventDialog.getByLabel("Categoria").fill("Teste E2E");
+  await eventDialog.getByLabel("Local").fill("Auditório de testes");
+  await eventDialog.getByLabel("Data e horário").fill(startsAt);
+  await eventDialog.getByLabel("Vagas disponíveis").fill("1");
+  const createdEventResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/v1/events",
+  );
+  await eventDialog.getByRole("button", { name: "Criar evento" }).click();
+  createdEventId = (await (await createdEventResponse).json()).id;
 
   const eventCard = page.locator(".event-card").filter({ hasText: title });
   await expect(eventCard).toBeVisible();
