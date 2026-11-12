@@ -42,7 +42,7 @@ jobs:
 
       - name: Instalar dependências do backend
         working-directory: backend
-        run: poetry install --with dev
+        run: poetry install --with dev --no-root
 
       - name: Instalar dependências do frontend
         run: npm ci --prefix frontend
